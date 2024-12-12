@@ -1,0 +1,64 @@
+trigger: none
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  # Azure ACR 和镜像名称
+  acrName: 'youracrname'
+  acrLoginServer: 'youracrname.azurecr.io'
+  frontendImageName: 'frontend-app'
+  backendImageName: 'backend-app'
+  containerRegistry: 'youracrname.azurecr.io'
+
+jobs:
+- job: BuildAndDeploy
+  displayName: 'Build Docker Images, Push to ACR, Deploy to AKS'
+  steps:
+  # 获取源代码
+  - task: Checkout@1
+
+  # 登录到 Azure
+  - task: AzureCLI@2
+    inputs:
+      azureSubscription: 'your-azure-subscription-id'
+      scriptType: 'bash'
+      scriptLocation: 'inlineScript'
+      inlineScript: |
+        # 登录到 Azure
+        az login --identity
+        # 获取 ACR 登录密码
+        acrPassword=$(az acr credential show --name $(acrName) --query "passwords[0].value" --output tsv)
+        # 登录到 ACR
+        docker login $(acrLoginServer) -u $(acrName) -p $acrPassword
+
+  # 构建前端镜像并推送到 ACR
+  - task: Docker@2
+    inputs:
+      containerRegistry: $(containerRegistry)
+      repository: $(containerRegistry)/$(frontendImageName)
+      command: 'buildAndPush'
+      Dockerfile: 'frontend/Dockerfile'
+      tags: 'latest'
+
+  # 构建后端镜像并推送到 ACR
+  - task: Docker@2
+    inputs:
+      containerRegistry: $(containerRegistry)
+      repository: $(containerRegistry)/$(backendImageName)
+      command: 'buildAndPush'
+      Dockerfile: 'backend/Dockerfile'
+      tags: 'latest'
+
+  # 使用 Helm 部署到 AKS
+  - task: AzureCLI@2
+    inputs:
+      azureSubscription: 'your-azure-subscription-id'
+      scriptType: 'bash'
+      scriptLocation: 'inlineScript'
+      inlineScript: |
+        # 设置 AKS 连接上下文
+        az aks get-credentials --resource-group your-resource-group --name your-aks-cluster
+
+        # 更新 Helm 部署
+        helm upgrade my-app ./helm -f ./helm/values.yaml --set frontend.image=$(acrLoginServer)/$(frontendImageName):latest --set backend.image=$(acrLoginServer)/$(backendImageName):latest

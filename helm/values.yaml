@@ -1,0 +1,6 @@
+frontend:
+  image: 'youracrname.azurecr.io/frontend-app:latest'
+  port: 3000
+backend:
+  image: 'youracrname.azurecr.io/backend-app:latest'
+  port: 5000

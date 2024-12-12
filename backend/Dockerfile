@@ -1,17 +1,17 @@
-# 使用 Node.js 官方镜像作为基础镜像
-FROM node:16-alpine
+# 使用 Python 基础镜像
+FROM python:3.9-slim
 
 # 设置工作目录
 WORKDIR /app
 
-# 拷贝后端代码到镜像
-COPY ./ ./
+# 复制后端代码
+COPY app.py requirements.txt ./
 
 # 安装依赖
-RUN npm install
-
-# 启动后端应用
-CMD ["npm", "start"]
+RUN pip install -r requirements.txt
 
 # 暴露端口
 EXPOSE 5000
+
+# 启动后端服务
+CMD ["python", "app.py"]

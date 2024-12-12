@@ -1,20 +1,9 @@
-# 使用 Node.js 官方镜像作为基础镜像
-FROM node:16-alpine
+# 使用 nginx 作为前端服务
+FROM nginx:alpine
 
-# 设置工作目录
-WORKDIR /app
-
-# 拷贝前端代码到镜像
-COPY ./ ./
-
-# 安装依赖
-RUN npm install
-
-# 构建前端应用
-RUN npm run build
-
-# 启动前端应用
-CMD ["npm", "start"]
+# 将前端代码复制到 nginx 容器的默认路径
+COPY index.html /usr/share/nginx/html/
+COPY app.js /usr/share/nginx/html/
 
 # 暴露端口
-EXPOSE 3000
+EXPOSE 80

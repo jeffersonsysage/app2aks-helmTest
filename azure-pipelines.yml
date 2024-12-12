@@ -1,0 +1,65 @@
+trigger:
+- main
+
+variables:
+  ACR_NAME: <YOUR_ACR_NAME>           # 替换为你的 ACR 名称
+  AKS_CLUSTER: <YOUR_AKS_CLUSTER>     # 替换为你的 AKS 集群名称
+  RESOURCE_GROUP: <YOUR_RESOURCE_GROUP>
+
+stages:
+- stage: BuildAndPush
+  displayName: Build and Push Docker Images
+  jobs:
+  - job: BuildAndPush
+    displayName: Build and Push to ACR
+    pool:
+      vmImage: 'ubuntu-latest'
+    steps:
+    - task: Docker@2
+      displayName: Build and Push Frontend Image
+      inputs:
+        command: buildAndPush
+        repository: $(ACR_NAME)/frontend
+        dockerfile: frontend/Dockerfile
+        tags: latest
+    - task: Docker@2
+      displayName: Build and Push Backend Image
+      inputs:
+        command: buildAndPush
+        repository: $(ACR_NAME)/backend
+        dockerfile: backend/Dockerfile
+        tags: latest
+
+- stage: DeployToAKS
+  displayName: Deploy to AKS
+  dependsOn: BuildAndPush
+  jobs:
+  - job: Deploy
+    displayName: Deploy to AKS
+    pool:
+      vmImage: 'ubuntu-latest'
+    steps:
+    - task: Kubernetes@1
+      displayName: Deploy Frontend
+      inputs:
+        connectionType: 'Azure Resource Manager'
+        azureSubscription: '<YOUR_AZURE_SUBSCRIPTION>' # 替换为你的 Azure 订阅
+        azureResourceGroup: $(RESOURCE_GROUP)
+        kubernetesCluster: $(AKS_CLUSTER)
+        namespace: default
+        command: apply
+        useConfigurationFile: true
+        configurationType: file
+        configuration: manifests/frontend-deployment.yaml
+    - task: Kubernetes@1
+      displayName: Deploy Backend
+      inputs:
+        connectionType: 'Azure Resource Manager'
+        azureSubscription: '<YOUR_AZURE_SUBSCRIPTION>'
+        azureResourceGroup: $(RESOURCE_GROUP)
+        kubernetesCluster: $(AKS_CLUSTER)
+        namespace: default
+        command: apply
+        useConfigurationFile: true
+        configurationType: file
+        configuration: manifests/backend-deployment.yaml
